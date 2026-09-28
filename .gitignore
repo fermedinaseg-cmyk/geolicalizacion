@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 resultados*.csv
 resultados*.json
+*.db

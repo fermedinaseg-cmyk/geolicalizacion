@@ -103,3 +103,31 @@ Se descartan automáticamente las IPs privadas o reservadas (192.168.x.x, 10.x.x
 ```bash
 python -m unittest -v
 ```
+
+---
+
+# Monitor de órdenes P2P de Binance (venta de USDT)
+
+```bash
+python -m p2p_monitor            # panel en http://127.0.0.1:8765
+```
+
+Consulta cada 30 s (`--intervalo`) tus órdenes de **VENTA** y muestra en el panel:
+fecha, hora, ID de orden, monto en USDT, estado, IP y país de la IP.
+
+Configura en `.env` `BINANCE_API_KEY` y `BINANCE_API_SECRET`: crea una API key
+en Binance con **solo lectura** (sin trading ni retiros).
+
+## Limitación importante: la IP
+
+**La API de Binance no entrega la IP del comprador** (ni de nadie) para una orden P2P.
+Por eso la columna IP se completa de dos formas:
+
+1. **Automática desde Outlook**: si configuras `OUTLOOK_CLIENT_ID` (ver arriba), el
+   monitor busca correos de Binance que mencionen el ID de la orden y contengan una IP.
+2. **Manual**: en el panel, pega la IP en la fila y pulsa *Guardar*; se geolocaliza al instante.
+
+Los datos se guardan en `p2p_log.db` (SQLite). El panel solo escucha en 127.0.0.1.
+No he podido probar contra la API real de Binance (sin tus credenciales): el
+endpoint es `/sapi/v1/c2c/orderMatch/listUserOrderHistory`; si tu cuenta devuelve
+otros nombres de campo, se ajustan en `p2p_monitor/binance.py::normalizar`.
