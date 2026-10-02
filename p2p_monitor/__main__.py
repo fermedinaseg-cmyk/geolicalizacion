@@ -18,6 +18,17 @@ from .monitor import Monitor
 from .web import servidor
 
 
+def _guardar_env(key: str, secret: str) -> None:
+    """Escribe las claves en .env conservando las demás líneas."""
+    lineas = []
+    if os.path.exists(".env"):
+        with open(".env", encoding="utf-8-sig") as f:
+            lineas = [l.rstrip("\n") for l in f if not l.startswith(("BINANCE_API_KEY", "BINANCE_API_SECRET"))]
+    lineas += [f"BINANCE_API_KEY={key}", f"BINANCE_API_SECRET={secret}"]
+    with open(".env", "w", encoding="utf-8") as f:
+        f.write("\n".join(lineas) + "\n")
+
+
 def main(argv=None) -> int:
     load_dotenv()
     p = argparse.ArgumentParser(prog="p2p_monitor", description=__doc__)
@@ -29,14 +40,15 @@ def main(argv=None) -> int:
     key = os.getenv("BINANCE_API_KEY", "").strip().strip("\"'")
     secret = os.getenv("BINANCE_API_SECRET", "").strip().strip("\"'")
     if not key or not secret:
-        ruta = os.path.abspath(".env")
-        falta = [n for n, v in (("BINANCE_API_KEY", key), ("BINANCE_API_SECRET", secret)) if not v]
-        sys.exit(
-            f"Falta: {', '.join(falta)}\n"
-            f"El programa busca el archivo: {ruta}\n"
-            f"{'Ese archivo SI existe pero esas lineas estan vacias.' if os.path.exists(ruta) else 'Ese archivo NO existe (revisa que no se llame .env.txt).'}\n"
-            "Cada linea debe verse asi, sin espacios ni comillas:  BINANCE_API_KEY=tuclave"
-        )
+        if not sys.stdin.isatty():
+            sys.exit("Faltan BINANCE_API_KEY y BINANCE_API_SECRET en .env")
+        print("No encontre tus claves de Binance. Pegalas aqui (clic derecho = pegar) y pulsa Enter.")
+        key = input("API Key: ").strip().strip("\"'")
+        secret = input("Secret Key: ").strip().strip("\"'")
+        if not key or not secret:
+            sys.exit("No escribiste las claves. Vuelve a abrir el programa.")
+        _guardar_env(key, secret)
+        print(f"Claves guardadas en {os.path.abspath('.env')}. No tendras que escribirlas otra vez.\n")
 
     outlook = None
     if os.getenv("OUTLOOK_CLIENT_ID"):
