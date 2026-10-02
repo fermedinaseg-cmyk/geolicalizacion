@@ -32,6 +32,6 @@ if not exist .env (
   notepad .env
 )
 
-start "" http://127.0.0.1:8765
+start "" cmd /c "timeout /t 5 >nul & start http://127.0.0.1:8765"
 python -m p2p_monitor
 pause
