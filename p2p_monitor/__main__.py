@@ -26,9 +26,17 @@ def main(argv=None) -> int:
     p.add_argument("--db", default="p2p_log.db")
     args = p.parse_args(argv)
 
-    key, secret = os.getenv("BINANCE_API_KEY"), os.getenv("BINANCE_API_SECRET")
+    key = os.getenv("BINANCE_API_KEY", "").strip().strip("\"'")
+    secret = os.getenv("BINANCE_API_SECRET", "").strip().strip("\"'")
     if not key or not secret:
-        sys.exit("Faltan BINANCE_API_KEY y BINANCE_API_SECRET en .env (ver README).")
+        ruta = os.path.abspath(".env")
+        falta = [n for n, v in (("BINANCE_API_KEY", key), ("BINANCE_API_SECRET", secret)) if not v]
+        sys.exit(
+            f"Falta: {', '.join(falta)}\n"
+            f"El programa busca el archivo: {ruta}\n"
+            f"{'Ese archivo SI existe pero esas lineas estan vacias.' if os.path.exists(ruta) else 'Ese archivo NO existe (revisa que no se llame .env.txt).'}\n"
+            "Cada linea debe verse asi, sin espacios ni comillas:  BINANCE_API_KEY=tuclave"
+        )
 
     outlook = None
     if os.getenv("OUTLOOK_CLIENT_ID"):
