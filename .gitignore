@@ -6,3 +6,4 @@ __pycache__/
 resultados*.csv
 resultados*.json
 *.db
+claves_p2p.json

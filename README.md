@@ -131,3 +131,20 @@ Los datos se guardan en `p2p_log.db` (SQLite). El panel solo escucha en 127.0.0.
 No he podido probar contra la API real de Binance (sin tus credenciales): el
 endpoint es `/sapi/v1/c2c/orderMatch/listUserOrderHistory`; si tu cuenta devuelve
 otros nombres de campo, se ajustan en `p2p_monitor/binance.py::normalizar`.
+
+---
+
+# Panel completo de órdenes P2P (`p2p_completo`)
+
+Doble clic en `INICIAR_P2P_COMPLETO.bat` (Windows) o `iniciar_p2p_completo.sh` (Mac/Linux).
+Se abre el panel en http://127.0.0.1:8766 y pegas ahí tu API Key y tu Secret Key
+(solo lectura). No hace falta editar ningún archivo `.env`.
+
+Muestra compras y ventas: fecha, hora, ID, cantidad, precio, total en moneda local
+(p. ej. BOB), comisiones (maker/taker), contraparte, método de pago y estado.
+Filtros por tipo, activo, moneda, estado, días y texto; totales; clic en una fila para
+ver **todos** los campos que entrega Binance; botón para pedir el detalle de la orden;
+exportación a CSV. El botón **Probar conexión** muestra qué clave se está usando y los
+permisos de la API, útil para diagnosticar errores como `Invalid Api-Key ID`.
+
+Nota: la API de Binance no entrega la IP de la contraparte.
