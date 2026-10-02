@@ -1,9 +1,6 @@
-.env
-.token_cache.json
+claves_p2p.json
+*.db
 __pycache__/
 *.pyc
 .venv/
-resultados*.csv
-resultados*.json
-*.db
-claves_p2p.json
+ordenes_p2p*.csv
