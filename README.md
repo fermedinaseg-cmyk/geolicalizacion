@@ -81,6 +81,21 @@ python -m geoip_outlook --ip 185.199.108.153 2606:4700:4700::1111
 Se descartan automáticamente las IPs privadas o reservadas (192.168.x.x, 10.x.x.x,
 127.0.0.1…) porque no se pueden geolocalizar; usa `--incluir-privadas` para verlas.
 
+## Alternativas sin Azure
+
+**A) Carpeta de archivos `.eml` (la más simple y fiable).** En Outlook, arrastra los
+correos de Binance a una carpeta del escritorio (se guardan como `.eml`) y ejecuta:
+
+```bash
+python -m geoip_outlook --eml ./correos --salida resultados.csv
+```
+
+**B) IMAP con contraseña de aplicación.** Activa la verificación en dos pasos en tu
+cuenta Microsoft, crea una *contraseña de aplicación*, rellena `IMAP_USUARIO` e
+`IMAP_CLAVE` en `.env` y ejecuta `python -m geoip_outlook --imap`. Ojo: Microsoft ha
+ido restringiendo IMAP con contraseña (en cuentas de trabajo suele estar bloqueado),
+así que si falla usa la opción A.
+
 ## Número de orden y país de origen
 
 Cada fila de resultados incluye `orden` (número de orden P2P extraído del correo)

@@ -33,27 +33,43 @@ def _argumentos(argv=None) -> argparse.Namespace:
     p.add_argument("--salida", help="guardar resultados en .csv o .json")
     p.add_argument("--incluir-privadas", action="store_true",
                    help="no descartar IPs privadas/reservadas")
+    p.add_argument("--eml", help="carpeta con correos .eml exportados (sin Azure)")
+    p.add_argument("--imap", action="store_true",
+                   help="leer por IMAP con IMAP_USUARIO/IMAP_CLAVE del .env (sin Azure)")
     p.add_argument("--ip", nargs="+", help="geolocalizar estas IPs directamente, sin Outlook")
     return p.parse_args(argv)
 
 
 def _filas_desde_outlook(args, geo: Geolocalizador):
-    from .outlook import ClienteOutlook
+    remitente = os.getenv("IMAP_REMITENTE", "binance.com")
+    if args.eml:
+        from .alternativas import correos_eml
+        correos = correos_eml(args.eml, remitente, args.max)
+    elif args.imap:
+        from .alternativas import correos_imap
+        usuario, clave = os.getenv("IMAP_USUARIO"), os.getenv("IMAP_CLAVE")
+        if not usuario or not clave:
+            sys.exit("Faltan IMAP_USUARIO e IMAP_CLAVE en .env (ver README.md).")
+        correos = correos_imap(os.getenv("IMAP_SERVIDOR", "outlook.office365.com"),
+                               usuario, clave, remitente, args.max)
+    else:
+        from .outlook import ClienteOutlook
 
-    client_id = os.getenv("OUTLOOK_CLIENT_ID")
-    if not client_id:
-        sys.exit("Falta OUTLOOK_CLIENT_ID en el archivo .env (ver README.md).")
-    cliente = ClienteOutlook(client_id, os.getenv("OUTLOOK_TENANT", "consumers"))
+        client_id = os.getenv("OUTLOOK_CLIENT_ID")
+        if not client_id:
+            sys.exit("Falta OUTLOOK_CLIENT_ID en el archivo .env (ver README.md).")
+        cliente = ClienteOutlook(client_id, os.getenv("OUTLOOK_TENANT", "consumers"))
+        correos = cliente.correos(args.buscar, args.max)
 
-    for correo in cliente.correos(args.buscar, args.max):
+    for correo in correos:
         cuerpo = correo.get("body", {}).get("content", "")
         texto = f"{correo.get('subject', '')}\n{cuerpo}"
-        remitente = correo.get("from", {}).get("emailAddress", {}).get("address", "")
+        de = correo.get("from", {}).get("emailAddress", {}).get("address", "")
         ordenes = extraer_ordenes(texto)
         for ip in extraer_ips(texto, args.incluir_privadas):
             yield {
                 "fecha": correo.get("receivedDateTime", ""),
-                "remitente": remitente,
+                "remitente": de,
                 "asunto": correo.get("subject", ""),
                 "orden": ",".join(ordenes),
                 **geo.localizar(ip).a_dict(),
