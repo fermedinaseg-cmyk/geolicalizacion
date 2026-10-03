@@ -18,6 +18,8 @@ AYUDA_ERRORES = {
     -2015: "La clave existe pero no tiene permiso o tu IP no está permitida. Activa 'Habilitar lectura' "
            "y quita la restricción de IP (o agrega la IP de este computador).",
     -1022: "La Secret Key es incorrecta (o es de otra API Key).",
+    -9000: "Binance no permite leer el chat de esta orden con tu API Key (la API de chat puede estar limitada a "
+           "cuentas de comerciante/anunciante).",
     -1021: "La hora de tu computador está desfasada. Sincroniza el reloj de Windows.",
 }
 
@@ -74,8 +76,49 @@ class Binance:
             fin = ini - 1
         return todas
 
+    def chat(self, numero_orden: str) -> list[dict]:
+        """Mensajes del chat de una orden, del más antiguo al más nuevo."""
+        mensajes, pagina = [], 1
+        while pagina <= 30:
+            datos = self._pedir("GET", "/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination",
+                                {"orderNo": numero_orden, "page": pagina, "rows": 100})
+            lote = _lista(datos)
+            mensajes.extend(normalizar_mensaje(m) for m in lote)
+            if len(lote) < 100:
+                break
+            pagina += 1
+        mensajes.sort(key=lambda m: m["hora_ms"])
+        return mensajes
+
     def detalle(self, numero_orden: str) -> dict:
         return self._pedir("POST", "/sapi/v1/c2c/orderMatch/getUserOrderDetail", {"adOrderNo": numero_orden})
+
+
+def _lista(datos) -> list:
+    d = datos.get("data") if isinstance(datos, dict) else datos
+    if isinstance(d, dict):
+        d = d.get("data") or d.get("list") or d.get("rows") or []
+    return d if isinstance(d, list) else []
+
+
+def _ms(v) -> int:
+    n = int(_num(v))
+    return n * 1000 if 0 < n < 10**11 else n
+
+
+def normalizar_mensaje(m: dict) -> dict:
+    """Mensaje de chat -> campos fijos. Binance puede nombrar los campos distinto, por eso se prueban varios."""
+    primero = lambda *ks: next((m[k] for k in ks if m.get(k) not in (None, "")), "")
+    tipo = str(primero("type", "chatMessageType", "msgType", "messageType")).lower()
+    return {
+        "hora_ms": _ms(primero("createTime", "chatTime", "sendTime", "time", "timestamp")),
+        "de": str(primero("fromNickName", "nickName", "senderNickName", "fromNick", "sender", "fromUserNo")),
+        "yo": bool(m.get("self") or m.get("isSelf") or m.get("mine")),
+        "tipo": tipo,
+        "texto": str(primero("content", "message", "text", "msg")),
+        "imagen": str(primero("imageUrl", "imageUrlOriginal", "thumbnailUrl", "url")),
+        "raw": m,
+    }
 
 
 def _num(v) -> float:

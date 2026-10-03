@@ -93,6 +93,8 @@ def servidor(estado: Estado, puerto: int = 8766) -> ThreadingHTTPServer:
                     elif url.path == "/api/probar":
                         p = estado.cliente.permisos()
                         self._json(200, {"clave": enmascarar(estado.cliente.api_key), "permisos": p})
+                    elif url.path == "/api/chat":
+                        self._json(200, {"mensajes": estado.cliente.chat(q["orden"][0])})
                     elif url.path == "/api/detalle":
                         self._json(200, estado.cliente.detalle(q["orden"][0]))
                     else:

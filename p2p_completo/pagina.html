@@ -21,6 +21,10 @@ th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white
 th{position:sticky;top:0;background:var(--panel);color:var(--mut);font-weight:600}
 tbody tr{cursor:pointer}tbody tr:hover{background:#1f2933}.n{text-align:right;font-variant-numeric:tabular-nums}
 .BUY{color:var(--ok)}.SELL{color:var(--bad)}.pill{padding:1px 7px;border-radius:9px;background:#26303a;font-size:12px}
+.chat{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.msg{max-width:80%;padding:6px 10px;border-radius:10px;background:#26303a;align-self:flex-start;word-break:break-word}
+.msg.yo{align-self:flex-end;background:#3b3411}.msg small{display:block;color:var(--mut);font-size:11px}
+.msg.sis{align-self:center;background:transparent;color:var(--mut);font-style:italic;text-align:center}
 .COMPLETED{background:#0b3d2b;color:var(--ok)}.CANCELLED,.CANCELLED_BY_SYSTEM{background:#3d1520;color:var(--bad)}
 #err{color:var(--bad);white-space:pre-wrap;margin:8px 0}.oculto{display:none}
 dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px;max-width:720px;width:92%}
@@ -53,11 +57,11 @@ dt{color:var(--mut)}dd{margin:0;word-break:break-all}
  <div class="res" id="res"></div>
  <div class="tabla"><table><thead><tr>
   <th>Fecha</th><th>Hora</th><th>Orden</th><th>Tipo</th><th class="n">Cantidad</th><th>Activo</th><th class="n">Precio</th><th class="n">Total</th><th>Moneda</th>
-  <th class="n">Comisión</th><th>Contraparte</th><th>Método de pago</th><th>Estado</th></tr></thead><tbody id="filas"></tbody></table></div>
+  <th class="n">Comisión</th><th>Contraparte</th><th>Método de pago</th><th>Estado</th><th>Chat</th></tr></thead><tbody id="filas"></tbody></table></div>
  <p class="mut" id="pie"></p>
 </section>
 </main>
-<dialog id="dlg"><div id="dlgCont"></div><p><button id="bDet">Pedir detalle completo a Binance</button> <button id="bCerrar">Cerrar</button></p></dialog>
+<dialog id="dlg"><div id="dlgCont"></div><p><button id="bChat">Ver chat</button> <button id="bDet">Pedir detalle completo a Binance</button> <button id="bCerrar">Cerrar</button></p></dialog>
 <script>
 const $=id=>document.getElementById(id);let datos=[],visibles=[],ordenActual=null,timer=null;
 const f2=(n,d=2)=>Number(n).toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -74,6 +78,8 @@ function pintar(){const tb=$('filas');tb.replaceChildren();
   td(tr,d.toLocaleDateString());td(tr,d.toLocaleTimeString());td(tr,o.orden);td(tr,o.tipo==='SELL'?'VENTA':'COMPRA',o.tipo);
   td(tr,f2(o.cantidad),'n');td(tr,o.activo);td(tr,f2(o.precio,3),'n');td(tr,f2(o.total_fiat),'n');td(tr,o.fiat);
   td(tr,f2(o.comision_total,4)+' '+o.activo,'n');td(tr,o.contraparte);td(tr,o.metodo_pago);pill(tr,o.estado);
+  const cx=document.createElement('td'),cb=document.createElement('button');cb.textContent='💬';cb.title='Ver chat';
+  cb.onclick=ev=>{ev.stopPropagation();abrir(o);verChat()};cx.append(cb);tr.append(cx);
   tr.onclick=()=>abrir(o);tb.append(tr)}
  const ok=visibles.filter(o=>o.estado==='COMPLETED'),sum=(l,k)=>l.reduce((s,o)=>s+o[k],0),
   cant=sum(ok,'cantidad'),tot=sum(ok,'total_fiat'),com=sum(ok,'comision_total'),
@@ -91,6 +97,17 @@ function abrir(o){ordenActual=o;const dl=document.createElement('dl');
 $('bDet').onclick=async()=>{try{const j=await api('/api/detalle?orden='+encodeURIComponent(ordenActual.orden));
  const dl=document.createElement('dl');const plano=j.data||j;for(const [k,v] of Object.entries(plano)){const a=document.createElement('dt'),b=document.createElement('dd');
  a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v):String(v);dl.append(a,b)}$('dlgCont').replaceChildren(dl)}catch(e){alert(e.message)}};
+async function verChat(){const c=document.createElement('div');c.className='chat';c.textContent='Cargando chat…';$('dlgCont').replaceChildren(c);
+ try{const j=await api('/api/chat?orden='+encodeURIComponent(ordenActual.orden));c.replaceChildren();
+  if(!j.mensajes.length){c.textContent='Esta orden no tiene mensajes (o Binance no los entregó).';return}
+  for(const m of j.mensajes){const d=document.createElement('div'),h=document.createElement('small');
+   d.className='msg'+(m.yo?' yo':'')+(!m.de&&!m.yo?' sis':'');
+   h.textContent=(m.yo?'Yo':(m.de||'Sistema'))+' · '+(m.hora_ms?new Date(m.hora_ms).toLocaleString():'');
+   d.append(h);d.append(document.createTextNode(m.texto||(m.imagen?'':'['+(m.tipo||'mensaje')+']')));
+   if(m.imagen&&/^https:\/\//.test(m.imagen)){const a=document.createElement('a');a.href=m.imagen;a.target='_blank';a.rel='noopener noreferrer';a.textContent='📎 ver imagen';a.style.color='var(--acc)';d.append(document.createElement('br'),a)}
+   c.append(d)}
+  c.scrollTop=c.scrollHeight}catch(e){c.textContent='No se pudo leer el chat.\n'+e.message}}
+$('bChat').onclick=verChat;
 $('bCerrar').onclick=()=>$('dlg').close();
 async function cargar(){try{const j=await api('/api/ordenes?dias='+$('fDias').value);datos=j.ordenes;
  llenarSelect($('fActivo'),datos.map(o=>o.activo));llenarSelect($('fFiat'),datos.map(o=>o.fiat));llenarSelect($('fEstado'),datos.map(o=>o.estado));

@@ -20,6 +20,9 @@ comisiones, contraparte, método de pago y estado. Incluye filtros, totales, vis
 de cada orden (clic en la fila), detalle de la orden y descarga en CSV. Botón **Probar conexión** para
 diagnosticar problemas con la API Key.
 
+**Chat:** el botón 💬 de cada fila (o *Ver chat* dentro de la orden) muestra los mensajes del chat P2P de esa orden.
+Binance puede limitar esta función a cuentas de comerciante; si la rechaza, el panel muestra el motivo.
+
 ## Archivos
 | Archivo | Qué hace |
 |---|---|

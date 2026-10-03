@@ -3,7 +3,7 @@ import threading
 import unittest
 import urllib.request
 
-from p2p_completo.api import Binance, ErrorBinance, normalizar
+from p2p_completo.api import Binance, ErrorBinance, normalizar, normalizar_mensaje
 from p2p_completo.web import Estado, servidor
 
 ORDEN = {"orderNumber": "99", "advNo": "7", "tradeType": "SELL", "asset": "USDT", "fiat": "BOB", "amount": "100",
@@ -21,6 +21,9 @@ class Falso:
     def permisos(self):
         raise ErrorBinance(-2008, "Invalid Api-Key ID.")
 
+    def chat(self, n):
+        return [normalizar_mensaje({"content": "hola", "fromNickName": "Juan", "createTime": 1790000000})]
+
     def detalle(self, n):
         return {"data": {"x": 1}}
 
@@ -30,6 +33,10 @@ class T(unittest.TestCase):
         n = normalizar(ORDEN)
         self.assertAlmostEqual(n["comision_total"], 0.15)
         self.assertEqual((n["contraparte"], n["fiat"], n["raw"]["advNo"]), ("Juan", "BOB", "7"))
+
+    def test_mensaje(self):
+        m = normalizar_mensaje({"content": "hola", "fromNickName": "Juan", "createTime": 1790000000, "self": True, "type": "TEXT"})
+        self.assertEqual((m["texto"], m["de"], m["yo"], m["hora_ms"]), ("hola", "Juan", True, 1790000000000))
 
     def test_error_ayuda(self):
         self.assertIn("API Key", str(ErrorBinance(-2008, "x")))
@@ -49,6 +56,7 @@ class T(unittest.TestCase):
         urllib.request.urlopen(req)
         self.assertEqual(len(get("/api/ordenes?dias=30")["ordenes"]), 1)
         self.assertIn("Invalid", get("/api/probar")["error"])
+        self.assertEqual(get("/api/chat?orden=99")["mensajes"][0]["texto"], "hola")
         self.assertFalse(os.path.exists("claves_p2p.json"))
         s.shutdown()
 
