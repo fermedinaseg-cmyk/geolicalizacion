@@ -43,6 +43,8 @@ class T(unittest.TestCase):
         r = resumen_detalle(crudo, "SELL")
         self.assertEqual((r["contraparte_nombre"], r["comprador_nick"]), ("Juan Perez Mamani", "juanp"))
         self.assertEqual(r["pagos"][0]["campos"], [("Nombre", "Juan Perez")])
+        self.assertIn(("payMethods[0].fields[0].fieldName", "Nombre"), resumen_detalle({"data": {"payMethods": [{"fields": [{"fieldName": "Nombre"}]}]}})["campos_nombre"])
+        self.assertIn(("buyerName", "Juan Perez Mamani"), r["campos_nombre"])
         self.assertEqual(resumen_detalle(crudo, "BUY")["contraparte_nombre"], "Yo Mismo")
 
     def test_balance(self):

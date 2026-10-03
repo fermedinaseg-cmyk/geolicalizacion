@@ -106,6 +106,8 @@ function bloque(t,pares){const b=document.createElement('div');b.className='card
 async function cargarContraparte(o,dl){const ph=document.createElement('p');ph.className='mut';ph.textContent='Cargando datos de la contraparte…';dl.before(ph);
  try{const j=await api('/api/detalle?orden='+encodeURIComponent(o.orden)+'&tipo='+o.tipo);const r=j.resumen;nombres[o.orden]=r.contraparte_nombre;
   const bl=[bloque('👤 Contraparte',[['Nombre completo',r.contraparte_nombre],['Usuario',o.contraparte],['Comprador',r.comprador_nombre+(r.comprador_nick?' ('+r.comprador_nick+')':'')],['Vendedor',r.vendedor_nombre+(r.vendedor_nick?' ('+r.vendedor_nick+')':'')]])];
+  bl.push(bloque('🔎 Campos de nombre que entrega Binance',r.campos_nombre.length?r.campos_nombre:[['(ninguno)','Binance no envió ningún campo con nombre en esta orden']]));
+  bl.push(bloque('Campos recibidos del detalle',[['',r.claves.join(', ')]]));
   for(const p of r.pagos)bl.push(bloque('💳 Pago: '+(p.metodo||'método'),p.campos));
   if(ordenActual===o){ph.replaceWith(...bl)}pintar()}catch(e){ph.textContent='No se pudo leer el detalle de la orden: '+e.message}}
 $('bNombres').onclick=async()=>{const b=$('bNombres'),pend=visibles.filter(o=>nombres[o.orden]===undefined);let hechos=0,fallos=0;b.disabled=true;

@@ -215,6 +215,22 @@ def _primero(d: dict, *claves) -> str:
     return next((str(d[k]) for k in claves if d.get(k) not in (None, "")), "")
 
 
+def _campos_nombre(obj, ruta="") -> list:
+    """Busca en toda la respuesta cualquier campo cuyo nombre contenga 'name' o 'nombre'."""
+    out = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            r = f"{ruta}.{k}" if ruta else str(k)
+            if isinstance(v, (dict, list)):
+                out += _campos_nombre(v, r)
+            elif v not in (None, "") and any(t in str(k).lower() for t in ("name", "nombre")):
+                out.append((r, str(v)))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            out += _campos_nombre(v, f"{ruta}[{i}]")
+    return out
+
+
 def resumen_detalle(resp: dict, tipo: str = "") -> dict:
     """Del detalle de una orden saca el nombre completo de la contraparte y los datos de pago.
 
@@ -238,4 +254,6 @@ def resumen_detalle(resp: dict, tipo: str = "") -> dict:
         "vendedor_nick": _primero(d, "sellerNickname", "sellerNickName"),
         "contraparte_nombre": (comprador if tipo == "SELL" else vendedor) if tipo else (comprador or vendedor),
         "pagos": pagos,
+        "campos_nombre": _campos_nombre(d),
+        "claves": sorted(d.keys()),
     }
