@@ -25,6 +25,11 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#1f2933}.n{text-align:right;fo
 .msg{max-width:80%;padding:6px 10px;border-radius:10px;background:#26303a;align-self:flex-start;word-break:break-word}
 .msg.yo{align-self:flex-end;background:#3b3411}.msg small{display:block;color:var(--mut);font-size:11px}
 .msg.sis{align-self:center;background:transparent;color:var(--mut);font-style:italic;text-align:center}
+h2{font-size:15px;margin:0 0 10px}.barra{height:10px;border-radius:5px;background:#26303a;margin:3px 0 8px;overflow:hidden}
+.barra i{display:block;height:100%}.verde{background:var(--ok)}.rojo{background:var(--bad)}.pos{color:var(--ok)}.neg{color:var(--bad)}
+.bal{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.bal div,.saldos div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.bal b,.saldos b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.saldos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
 .COMPLETED{background:#0b3d2b;color:var(--ok)}.CANCELLED,.CANCELLED_BY_SYSTEM{background:#3d1520;color:var(--bad)}
 #err{color:var(--bad);white-space:pre-wrap;margin:8px 0}.oculto{display:none}
 dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px;max-width:720px;width:92%}
@@ -45,6 +50,8 @@ dt{color:var(--mut)}dd{margin:0;word-break:break-all}
 <div id="err"></div>
 <pre id="diag" class="card oculto" style="white-space:pre-wrap"></pre>
 <section id="panel" class="oculto">
+ <div class="card"><h2>💰 Mi USDT ahora</h2><div class="saldos" id="saldos">Cargando saldos…</div></div>
+ <div class="card"><h2>⚖️ Balance general: USDT vs moneda local <span class="mut" id="balPeriodo"></span></h2><div id="balance"></div></div>
  <div class="card fila">
   <div><label>Tipo</label><select id="fTipo"><option value="">Compras y ventas</option><option value="SELL">Solo ventas</option><option value="BUY">Solo compras</option></select></div>
   <div><label>Activo</label><select id="fActivo"><option value="">Todos</option></select></div>
@@ -109,9 +116,38 @@ async function verChat(){const c=document.createElement('div');c.className='chat
   c.scrollTop=c.scrollHeight}catch(e){c.textContent='No se pudo leer el chat.\n'+e.message}}
 $('bChat').onclick=verChat;
 $('bCerrar').onclick=()=>$('dlg').close();
+
+function tile(k,v,cls,sub){const d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.className='mut';s.textContent=k;b.textContent=v;if(cls)b.className=cls;d.append(s,b);
+ if(sub){const m=document.createElement('span');m.className='mut';m.textContent=sub;d.append(m)}return d}
+const signo=(n,d=2)=>(n>0?'+':'')+f2(n,d);
+function barras(a,b,ta,tb,unidad){const m=Math.max(a,b,1e-9),w=document.createElement('div');
+ for(const [v,t,c] of [[a,ta,'verde'],[b,tb,'rojo']]){const l=document.createElement('span');l.className='mut';l.textContent=t+': '+f2(v)+' '+unidad;
+  const br=document.createElement('div'),i=document.createElement('i');br.className='barra';i.className=c;i.style.width=(100*v/m)+'%';br.append(i);w.append(l,br)}return w}
+function pintarBalance(bal){const cont=$('balance');cont.replaceChildren();const fiats=Object.values(bal||{});
+ $('balPeriodo').textContent='· últimos '+$('fDias').value+' días, solo órdenes completadas';
+ if(!fiats.length){cont.textContent='Sin órdenes de USDT en este periodo.';return}
+ for(const b of fiats){const h=document.createElement('h2');h.textContent='USDT / '+b.fiat;h.style.marginTop='12px';cont.append(h);
+  const g=document.createElement('div');g.className='bal';
+  g.append(tile('Comprado',f2(b.comprado)+' USDT','pos',b.n_compras+' órdenes · pagaste '+f2(b.pagado)+' '+b.fiat),
+   tile('Vendido',f2(b.vendido)+' USDT','neg',b.n_ventas+' órdenes · cobraste '+f2(b.cobrado)+' '+b.fiat),
+   tile('Precio prom. compra',b.comprado?f2(b.precio_compra,3)+' '+b.fiat:'—'),tile('Precio prom. venta',b.vendido?f2(b.precio_venta,3)+' '+b.fiat:'—'),
+   tile('Diferencia USDT (comprado − vendido)',signo(b.neto_usdt)+' USDT',b.neto_usdt>=0?'pos':'neg',b.neto_usdt>=0?'Acumulaste USDT':'Vendiste más de lo que compraste'),
+   tile('Diferencia '+b.fiat+' (cobrado − pagado)',signo(b.neto_fiat)+' '+b.fiat,b.neto_fiat>=0?'pos':'neg'),
+   tile('Ganancia estimada',signo(b.ganancia_estimada)+' '+b.fiat,b.ganancia_estimada>=0?'pos':'neg','(precio venta − compra) × volumen emparejado'),
+   tile('Comisiones',f2(b.comision,4)+' USDT'),
+   tile('En curso ahora',b.n_en_curso+' órdenes',null,'comprando '+f2(b.en_curso_compra)+' · vendiendo '+f2(b.en_curso_venta)+' USDT'),
+   tile('Canceladas',b.canceladas));cont.append(g);
+  const c=document.createElement('div');c.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px';
+  c.append(barras(b.comprado,b.vendido,'Comprado','Vendido','USDT'),barras(b.pagado,b.cobrado,'Pagaste','Cobraste',b.fiat));cont.append(c)}}
+async function cargarSaldos(){const c=$('saldos');try{const j=await api('/api/saldos');c.replaceChildren();
+ const t=(j.spot?j.spot.libre+j.spot.bloqueado:0)+(j.fondos?j.fondos.libre+j.fondos.bloqueado:0);
+ c.append(tile('USDT total',f2(t),'pos'));
+ if(j.fondos)c.append(tile('Billetera de Fondos (P2P)',f2(j.fondos.libre+j.fondos.bloqueado),null,'disponible '+f2(j.fondos.libre)+' · bloqueado '+f2(j.fondos.bloqueado)));
+ if(j.spot)c.append(tile('Billetera Spot',f2(j.spot.libre+j.spot.bloqueado),null,'disponible '+f2(j.spot.libre)+' · bloqueado '+f2(j.spot.bloqueado)));
+ for(const e of j.errores){const d=document.createElement('div');d.className='mut';d.textContent='⚠ '+e;c.append(d)}}catch(e){c.textContent='No se pudieron leer los saldos: '+e.message}}
 async function cargar(){try{const j=await api('/api/ordenes?dias='+$('fDias').value);datos=j.ordenes;
  llenarSelect($('fActivo'),datos.map(o=>o.activo));llenarSelect($('fFiat'),datos.map(o=>o.fiat));llenarSelect($('fEstado'),datos.map(o=>o.estado));
- error('');$('estado').textContent='Actualizado '+new Date(j.actualizado*1000).toLocaleTimeString();filtrar()}catch(e){error(e.message)}}
+ pintarBalance(j.balance);cargarSaldos();error('');$('estado').textContent='Actualizado '+new Date(j.actualizado*1000).toLocaleTimeString();filtrar()}catch(e){error(e.message)}}
 async function iniciar(){const s=await api('/api/estado');$('conexion').classList.toggle('oculto',s.conectado);$('panel').classList.toggle('oculto',!s.conectado);
  $('bProbar').classList.toggle('oculto',!s.conectado);$('bSalir').classList.toggle('oculto',!s.conectado);clearInterval(timer);
  if(s.conectado){$('estado').textContent='Clave '+s.clave;await cargar();timer=setInterval(cargar,30000)}}

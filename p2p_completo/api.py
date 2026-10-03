@@ -90,6 +90,25 @@ class Binance:
         mensajes.sort(key=lambda m: m["hora_ms"])
         return mensajes
 
+    def saldos(self, activo: str = "USDT") -> dict:
+        """Cuánto {activo} tienes: billetera Spot y billetera de Fondos (donde llega el P2P)."""
+        res: dict = {"activo": activo, "spot": None, "fondos": None, "errores": []}
+        try:
+            for b in self._pedir("GET", "/api/v3/account", {"omitZeroBalances": "true"}).get("balances", []):
+                if b.get("asset") == activo:
+                    res["spot"] = {"libre": _num(b.get("free")), "bloqueado": _num(b.get("locked"))}
+            res["spot"] = res["spot"] or {"libre": 0.0, "bloqueado": 0.0}
+        except ErrorBinance as e:
+            res["errores"].append(f"Spot: {e}")
+        try:
+            lista = self._pedir("POST", "/sapi/v1/asset/get-funding-asset", {"asset": activo})
+            fila = next((x for x in lista if x.get("asset") == activo), {}) if isinstance(lista, list) else {}
+            res["fondos"] = {"libre": _num(fila.get("free")),
+                             "bloqueado": _num(fila.get("locked")) + _num(fila.get("freeze")) + _num(fila.get("withdrawing"))}
+        except ErrorBinance as e:
+            res["errores"].append(f"Fondos: {e}")
+        return res
+
     def detalle(self, numero_orden: str) -> dict:
         return self._pedir("POST", "/sapi/v1/c2c/orderMatch/getUserOrderDetail", {"adOrderNo": numero_orden})
 
@@ -149,3 +168,44 @@ def normalizar(o: dict) -> dict:
         "estado": o.get("orderStatus", ""),
         "raw": o,
     }
+
+
+def _estado(e: str) -> str:
+    e = (e or "").upper()
+    if e.startswith("COMPLETED"):
+        return "completada"
+    if e.startswith("CANCELLED") or e.startswith("EXPIRED"):
+        return "cancelada"
+    return "en_curso"
+
+
+def calcular_balance(filas: list[dict], activo: str = "USDT") -> dict:
+    """Balance por moneda local: lo comprado, lo vendido, la diferencia y la ganancia estimada."""
+    por_fiat: dict[str, dict] = {}
+    for f in filas:
+        if f["activo"] != activo:
+            continue
+        b = por_fiat.setdefault(f["fiat"], {
+            "fiat": f["fiat"], "comprado": 0.0, "pagado": 0.0, "n_compras": 0, "vendido": 0.0, "cobrado": 0.0,
+            "n_ventas": 0, "comision": 0.0, "canceladas": 0, "en_curso_compra": 0.0, "en_curso_venta": 0.0, "n_en_curso": 0})
+        est = _estado(f["estado"])
+        compra = f["tipo"] == "BUY"
+        if est == "completada":
+            b["comision"] += f["comision_total"]
+            if compra:
+                b["comprado"] += f["cantidad"]; b["pagado"] += f["total_fiat"]; b["n_compras"] += 1
+            else:
+                b["vendido"] += f["cantidad"]; b["cobrado"] += f["total_fiat"]; b["n_ventas"] += 1
+        elif est == "cancelada":
+            b["canceladas"] += 1
+        else:
+            b["n_en_curso"] += 1
+            b["en_curso_compra" if compra else "en_curso_venta"] += f["cantidad"]
+    for b in por_fiat.values():
+        b["precio_compra"] = b["pagado"] / b["comprado"] if b["comprado"] else 0.0
+        b["precio_venta"] = b["cobrado"] / b["vendido"] if b["vendido"] else 0.0
+        b["neto_usdt"] = b["comprado"] - b["vendido"]      # >0: acumulaste USDT; <0: vendiste más de lo que compraste
+        b["neto_fiat"] = b["cobrado"] - b["pagado"]        # >0: entró más moneda local de la que salió
+        pares = min(b["comprado"], b["vendido"])           # volumen "emparejado" compra/venta
+        b["ganancia_estimada"] = pares * (b["precio_venta"] - b["precio_compra"]) if pares else 0.0
+    return por_fiat

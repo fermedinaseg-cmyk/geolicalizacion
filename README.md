@@ -23,6 +23,10 @@ diagnosticar problemas con la API Key.
 **Chat:** el botón 💬 de cada fila (o *Ver chat* dentro de la orden) muestra los mensajes del chat P2P de esa orden.
 Binance puede limitar esta función a cuentas de comerciante; si la rechaza, el panel muestra el motivo.
 
+**Balance general:** arriba del panel se ve cuántos USDT tienes ahora (billetera de Fondos, donde llega el P2P, y Spot) y,
+por cada moneda local (p. ej. BOB), lo comprado, lo vendido, precios promedio, diferencias, ganancia estimada, comisiones y
+órdenes en curso, con barras comparativas. Se calcula con las órdenes completadas del periodo elegido (7 a 365 días).
+
 ## Archivos
 | Archivo | Qué hace |
 |---|---|

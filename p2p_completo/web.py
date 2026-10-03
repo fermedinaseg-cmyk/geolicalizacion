@@ -6,7 +6,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .api import Binance, ErrorBinance, DIA_MS, enmascarar, normalizar
+from .api import Binance, ErrorBinance, DIA_MS, calcular_balance, enmascarar, normalizar
 
 ARCHIVO_CLAVES = "claves_p2p.json"
 PAGINA = open(os.path.join(os.path.dirname(__file__), "pagina.html"), encoding="utf-8").read()
@@ -51,7 +51,7 @@ class Estado:
         for tipo in ("BUY", "SELL"):
             filas += [normalizar(o) for o in self.cliente.historial(tipo, ahora - dias * DIA_MS, ahora)]
         filas.sort(key=lambda f: f["creada_ms"], reverse=True)
-        datos = {"ordenes": filas, "actualizado": int(time.time())}
+        datos = {"ordenes": filas, "balance": calcular_balance(filas), "actualizado": int(time.time())}
         self.cache[dias] = {"t": time.time(), "datos": datos}
         return datos
 
@@ -93,6 +93,8 @@ def servidor(estado: Estado, puerto: int = 8766) -> ThreadingHTTPServer:
                     elif url.path == "/api/probar":
                         p = estado.cliente.permisos()
                         self._json(200, {"clave": enmascarar(estado.cliente.api_key), "permisos": p})
+                    elif url.path == "/api/saldos":
+                        self._json(200, estado.cliente.saldos())
                     elif url.path == "/api/chat":
                         self._json(200, {"mensajes": estado.cliente.chat(q["orden"][0])})
                     elif url.path == "/api/detalle":
