@@ -34,3 +34,23 @@ def extraer_ips(texto: str, incluir_privadas: bool = False) -> list[str]:
         if normalizada not in vistas:
             vistas.append(normalizada)
     return vistas
+
+
+# Número de orden P2P de Binance: normalmente 19-20 dígitos, tras una etiqueta.
+_ORDEN_ETIQUETA = re.compile(
+    r"(?:order\s*(?:number|no\.?|id|#)|n[úu]mero\s+de\s+orden|n[º°o]\.?\s*de\s+orden|orden)"
+    r"\s*[:#\-]?\s*(\d{10,25})",
+    re.IGNORECASE,
+)
+_ORDEN_LARGO = re.compile(r"(?<!\d)\d{19,20}(?!\d)")
+
+
+def extraer_ordenes(texto: str) -> list[str]:
+    """Devuelve los números de orden encontrados en ``texto``, sin duplicados.
+
+    Prioriza los que van tras una etiqueta ("Order number", "Número de orden"…);
+    si no hay ninguno, usa números sueltos de 19-20 dígitos.
+    """
+    limpio = limpiar_html(texto)
+    encontrados = list(dict.fromkeys(_ORDEN_ETIQUETA.findall(limpio)))
+    return encontrados or list(dict.fromkeys(_ORDEN_LARGO.findall(limpio)))

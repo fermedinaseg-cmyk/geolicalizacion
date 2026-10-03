@@ -81,6 +81,12 @@ python -m geoip_outlook --ip 185.199.108.153 2606:4700:4700::1111
 Se descartan automáticamente las IPs privadas o reservadas (192.168.x.x, 10.x.x.x,
 127.0.0.1…) porque no se pueden geolocalizar; usa `--incluir-privadas` para verlas.
 
+## Número de orden y país de origen
+
+Cada fila de resultados incluye `orden` (número de orden P2P extraído del correo)
+junto a `ip` y `pais` (país de origen obtenido al geolocalizar la IP), listo para
+cruzarlo con el panel de monitoreo P2P mediante `--salida resultados.csv|json`.
+
 ## Cómo funciona
 
 | Archivo                            | Qué hace                                                        |

@@ -15,11 +15,11 @@ import sys
 
 from dotenv import load_dotenv
 
-from .extractor import extraer_ips
+from .extractor import extraer_ips, extraer_ordenes
 from .geolocalizador import Geolocalizador
 
 COLUMNAS = [
-    "fecha", "remitente", "asunto", "ip", "pais", "region", "ciudad",
+    "fecha", "remitente", "asunto", "orden", "ip", "pais", "region", "ciudad",
     "latitud", "longitud", "proveedor", "mapa", "fuente", "error",
 ]
 
@@ -49,23 +49,27 @@ def _filas_desde_outlook(args, geo: Geolocalizador):
         cuerpo = correo.get("body", {}).get("content", "")
         texto = f"{correo.get('subject', '')}\n{cuerpo}"
         remitente = correo.get("from", {}).get("emailAddress", {}).get("address", "")
+        ordenes = extraer_ordenes(texto)
         for ip in extraer_ips(texto, args.incluir_privadas):
             yield {
                 "fecha": correo.get("receivedDateTime", ""),
                 "remitente": remitente,
                 "asunto": correo.get("subject", ""),
+                "orden": ",".join(ordenes),
                 **geo.localizar(ip).a_dict(),
             }
 
 
 def _filas_desde_ips(args, geo: Geolocalizador):
     for ip in args.ip:
-        yield {"fecha": "", "remitente": "", "asunto": "", **geo.localizar(ip).a_dict()}
+        yield {"fecha": "", "remitente": "", "asunto": "", "orden": "", **geo.localizar(ip).a_dict()}
 
 
 def _imprimir(fila: dict) -> None:
     lugar = ", ".join(x for x in (fila["ciudad"], fila["region"], fila["pais"]) if x)
     print(f"\n{fila['ip']}")
+    if fila.get("orden"):
+        print(f"  Orden:     {fila['orden']}")
     if fila["asunto"]:
         print(f"  Correo:    {fila['fecha']}  {fila['asunto']}")
     if fila["error"]:

@@ -66,3 +66,15 @@ class TestGeolocalizador(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOrdenes(unittest.TestCase):
+    def test_orden_con_etiqueta(self):
+        from geoip_outlook.extractor import extraer_ordenes
+        txt = "<p>Order Number: 22712345678901234567</p> ref 1234567890123456789012"
+        self.assertEqual(extraer_ordenes(txt), ["22712345678901234567"])
+
+    def test_orden_en_espanol_y_sin_etiqueta(self):
+        from geoip_outlook.extractor import extraer_ordenes
+        self.assertEqual(extraer_ordenes("Número de orden: 2271234567890123456"), ["2271234567890123456"])
+        self.assertEqual(extraer_ordenes("id 22712345678901234567"), ["22712345678901234567"])
