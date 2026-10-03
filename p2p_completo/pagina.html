@@ -1,0 +1,183 @@
+<!doctype html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Binance P2P · Panel completo</title>
+<style>
+:root{--bg:#0f1419;--panel:#1a2027;--line:#26303a;--txt:#e6e8ea;--mut:#8b98a5;--ok:#0ecb81;--bad:#f6465d;--acc:#f0b90b}
+*{box-sizing:border-box}body{font:14px system-ui,sans-serif;margin:0;background:var(--bg);color:var(--txt)}
+header{padding:12px 20px;background:var(--panel);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0;flex:1}.mut{color:var(--mut);font-size:12px}
+main{padding:16px 20px;max-width:1500px;margin:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+input,select,button{font:inherit;background:var(--bg);color:var(--txt);border:1px solid #38434f;border-radius:5px;padding:6px 9px}
+input[type=text],input[type=password]{width:100%}
+button{cursor:pointer}button.p{background:var(--acc);color:#111;border:0;font-weight:600}
+label{display:block;margin:8px 0 3px;color:var(--mut);font-size:12px}
+.fila{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.res div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.res b{display:block;font-size:20px;margin-top:2px;font-variant-numeric:tabular-nums}
+.tabla{overflow:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:1100px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);color:var(--mut);font-weight:600}
+tbody tr{cursor:pointer}tbody tr:hover{background:#1f2933}.n{text-align:right;font-variant-numeric:tabular-nums}
+.BUY{color:var(--ok)}.SELL{color:var(--bad)}.pill{padding:1px 7px;border-radius:9px;background:#26303a;font-size:12px}
+.chat{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.msg{max-width:80%;padding:6px 10px;border-radius:10px;background:#26303a;align-self:flex-start;word-break:break-word}
+.msg.yo{align-self:flex-end;background:#3b3411}.msg small{display:block;color:var(--mut);font-size:11px}
+.msg.sis{align-self:center;background:transparent;color:var(--mut);font-style:italic;text-align:center}
+h2{font-size:15px;margin:0 0 10px}.barra{height:10px;border-radius:5px;background:#26303a;margin:3px 0 8px;overflow:hidden}
+.barra i{display:block;height:100%}.verde{background:var(--ok)}.rojo{background:var(--bad)}.pos{color:var(--ok)}.neg{color:var(--bad)}
+.bal{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.bal div,.saldos div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.bal b,.saldos b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.saldos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.COMPLETED{background:#0b3d2b;color:var(--ok)}.CANCELLED,.CANCELLED_BY_SYSTEM{background:#3d1520;color:var(--bad)}
+#err{color:var(--bad);white-space:pre-wrap;margin:8px 0}.oculto{display:none}
+dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px;max-width:720px;width:92%}
+dialog::backdrop{background:#000a}dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0}
+dt{color:var(--mut)}dd{margin:0;word-break:break-all}
+</style>
+<header><h1>Binance P2P · Panel completo</h1><span id="estado" class="mut"></span>
+<button id="bProbar" class="oculto">Probar conexión</button><button id="bSalir" class="oculto">Cambiar API Key</button></header>
+<main>
+<section id="conexion" class="card oculto">
+ <b>Conecta tu cuenta de Binance</b>
+ <p class="mut">Usa una API Key de <b>solo lectura</b> (Generada por el sistema, solo "Habilitar lectura"). Los datos van únicamente de tu computador a Binance.</p>
+ <label>API Key</label><input type="text" id="key" autocomplete="off" spellcheck="false">
+ <label>Secret Key</label><input type="password" id="secret" autocomplete="off">
+ <label><input type="checkbox" id="recordar"> Recordar en este computador (se guarda en el archivo claves_p2p.json)</label>
+ <p><button class="p" id="bConectar">Conectar</button></p>
+</section>
+<div id="err"></div>
+<pre id="diag" class="card oculto" style="white-space:pre-wrap"></pre>
+<section id="panel" class="oculto">
+ <div class="card"><h2>💰 Mi USDT ahora</h2><div class="saldos" id="saldos">Cargando saldos…</div></div>
+ <div class="card"><h2>⚖️ Balance general: USDT vs moneda local <span class="mut" id="balPeriodo"></span></h2><div id="balance"></div></div>
+ <div class="card fila">
+  <div><label>Tipo</label><select id="fTipo"><option value="">Compras y ventas</option><option value="SELL">Solo ventas</option><option value="BUY">Solo compras</option></select></div>
+  <div><label>Activo</label><select id="fActivo"><option value="">Todos</option></select></div>
+  <div><label>Moneda</label><select id="fFiat"><option value="">Todas</option></select></div>
+  <div><label>Estado</label><select id="fEstado"><option value="">Todos</option></select></div>
+  <div><label>Últimos días</label><select id="fDias"><option>7</option><option selected>30</option><option>60</option><option>90</option><option>180</option><option>365</option></select></div>
+  <div style="flex:1"><label>Buscar (orden, contraparte, método de pago)</label><input type="text" id="fBuscar"></div>
+  <button id="bNombres" title="Pide a Binance el detalle de cada orden mostrada">Cargar nombres completos</button><button id="bIps" title="Carga el resultados.json generado por python -m geoip_outlook">Cargar IPs de correos</button><input type="file" id="fIps" accept=".json" hidden><button id="bCsv">Descargar CSV</button>
+ </div>
+ <div class="res" id="res"></div>
+ <div class="tabla"><table><thead><tr>
+  <th>Fecha</th><th>Hora</th><th>Orden</th><th>Tipo</th><th class="n">Cantidad</th><th>Activo</th><th class="n">Precio</th><th class="n">Total</th><th>Moneda</th>
+  <th class="n">Comisión</th><th>Contraparte</th><th>Nombre completo</th><th>Método de pago</th><th>IP</th><th>País de origen</th><th>Estado</th><th>Chat</th></tr></thead><tbody id="filas"></tbody></table></div>
+ <p class="mut" id="pie"></p>
+</section>
+</main>
+<dialog id="dlg"><div id="dlgCont"></div><p><button id="bChat">Ver chat</button> <button id="bDet">Pedir detalle completo a Binance</button> <button id="bCerrar">Cerrar</button></p></dialog>
+<script>
+const $=id=>document.getElementById(id);const nombres={};const ips={};let datos=[],visibles=[],ordenActual=null,timer=null;
+const f2=(n,d=2)=>Number(n).toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d});
+async function api(ruta,cuerpo){const r=await fetch(ruta,cuerpo?{method:'POST',body:JSON.stringify(cuerpo)}:{});let j={};try{j=await r.json()}catch(e){}
+ if(!r.ok||j.error&&!ruta.includes('probar'))throw new Error(j.error||('Error '+r.status));return j}
+function error(m){$('err').textContent=m||''}
+function td(tr,t,c){const x=document.createElement('td');x.textContent=t;if(c)x.className=c;tr.append(x);return x}
+function pill(tr,t){const x=document.createElement('td'),s=document.createElement('span');s.className='pill '+t;s.textContent=t;x.append(s);tr.append(x)}
+function llenarSelect(sel,valores){const a=sel.value;sel.length=1;[...new Set(valores)].filter(Boolean).sort().forEach(v=>sel.add(new Option(v,v)));sel.value=a}
+function filtrar(){const t=$('fTipo').value,a=$('fActivo').value,m=$('fFiat').value,e=$('fEstado').value,b=$('fBuscar').value.toLowerCase();
+ visibles=datos.filter(o=>(!t||o.tipo===t)&&(!a||o.activo===a)&&(!m||o.fiat===m)&&(!e||o.estado===e)&&(!b||(o.orden+o.contraparte+o.metodo_pago).toLowerCase().includes(b)));pintar()}
+function pintar(){const tb=$('filas');tb.replaceChildren();
+ for(const o of visibles){const tr=document.createElement('tr'),d=new Date(o.creada_ms);
+  td(tr,d.toLocaleDateString());td(tr,d.toLocaleTimeString());td(tr,o.orden);td(tr,o.tipo==='SELL'?'VENTA':'COMPRA',o.tipo);
+  td(tr,f2(o.cantidad),'n');td(tr,o.activo);td(tr,f2(o.precio,3),'n');td(tr,f2(o.total_fiat),'n');td(tr,o.fiat);
+  td(tr,f2(o.comision_total,4)+' '+o.activo,'n');td(tr,o.contraparte);td(tr,nombres[o.orden]!==undefined?(nombres[o.orden]||'—'):'');td(tr,o.metodo_pago);td(tr,(ips[o.orden]||[]).map(x=>x.ip).join(', '));td(tr,(ips[o.orden]||[]).map(x=>x.pais).filter(Boolean).join(', '));pill(tr,o.estado);
+  const cx=document.createElement('td'),cb=document.createElement('button');cb.textContent='💬';cb.title='Ver chat';
+  cb.onclick=ev=>{ev.stopPropagation();abrir(o);verChat()};cx.append(cb);tr.append(cx);
+  tr.onclick=()=>abrir(o);tb.append(tr)}
+ const ok=visibles.filter(o=>o.estado==='COMPLETED'),sum=(l,k)=>l.reduce((s,o)=>s+o[k],0),
+  cant=sum(ok,'cantidad'),tot=sum(ok,'total_fiat'),com=sum(ok,'comision_total'),
+  ven=ok.filter(o=>o.tipo==='SELL'),com_=ok.filter(o=>o.tipo==='BUY');
+ const tarj=[['Órdenes mostradas',visibles.length],['Completadas',ok.length],['Cantidad (completadas)',f2(cant)],['Total en moneda local',f2(tot)],
+  ['Precio promedio',cant?f2(tot/cant,3):'—'],['Comisiones',f2(com,4)],['Vendido',f2(sum(ven,'cantidad'))],['Comprado',f2(sum(com_,'cantidad'))],
+  ['Contrapartes distintas',new Set(visibles.map(o=>o.contraparte)).size]];
+ $('res').replaceChildren(...tarj.map(([k,v])=>{const d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');
+  s.className='mut';s.textContent=k;b.textContent=v;d.append(s,b);return d}));
+ $('pie').textContent='Totales calculados solo con órdenes COMPLETADAS. Haz clic en una fila para ver todos los datos que entrega Binance.'}
+function abrir(o){ordenActual=o;const dl=document.createElement('dl');
+ const campos=[['Fecha',new Date(o.creada_ms).toLocaleString()],...Object.entries(o.raw)];
+ for(const [k,v] of campos){const a=document.createElement('dt'),b=document.createElement('dd');a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v):String(v);dl.append(a,b)}
+ $('dlgCont').replaceChildren(dl);$('dlg').showModal();cargarContraparte(o,dl)}
+function bloque(t,pares){const b=document.createElement('div');b.className='card';const h=document.createElement('h2');h.textContent=t;b.append(h);
+ const l=document.createElement('dl');for(const [k,v] of pares){const a=document.createElement('dt'),c=document.createElement('dd');a.textContent=k;c.textContent=v||'—';l.append(a,c)}b.append(l);return b}
+async function cargarContraparte(o,dl){const ph=document.createElement('p');ph.className='mut';ph.textContent='Cargando datos de la contraparte…';dl.before(ph);
+ try{const j=await api('/api/detalle?orden='+encodeURIComponent(o.orden)+'&tipo='+o.tipo);const r=j.resumen;nombres[o.orden]=r.contraparte_nombre;
+  const bl=[bloque('👤 Contraparte',[['Nombre completo',r.contraparte_nombre],['Usuario',o.contraparte],['Comprador',r.comprador_nombre+(r.comprador_nick?' ('+r.comprador_nick+')':'')],['Vendedor',r.vendedor_nombre+(r.vendedor_nick?' ('+r.vendedor_nick+')':'')]])];
+  bl.push(bloque('🔎 Campos de nombre que entrega Binance',r.campos_nombre.length?r.campos_nombre:[['(ninguno)','Binance no envió ningún campo con nombre en esta orden']]));
+  bl.push(bloque('Campos recibidos del detalle',[['',r.claves.join(', ')]]));
+  for(const p of r.pagos)bl.push(bloque('💳 Pago: '+(p.metodo||'método'),p.campos));
+  if(ordenActual===o){ph.replaceWith(...bl)}pintar()}catch(e){ph.textContent='No se pudo leer el detalle de la orden: '+e.message}}
+$('bNombres').onclick=async()=>{const b=$('bNombres'),pend=visibles.filter(o=>nombres[o.orden]===undefined);let hechos=0,fallos=0;b.disabled=true;
+ const cola=[...pend];await Promise.all([0,1,2].map(async()=>{for(let o;(o=cola.shift());){try{const j=await api('/api/detalle?orden='+encodeURIComponent(o.orden)+'&tipo='+o.tipo);nombres[o.orden]=j.resumen.contraparte_nombre}catch(e){fallos++;if(fallos===1)error(e.message)}
+  b.textContent='Cargando '+(++hechos)+'/'+pend.length+'…'}}));b.disabled=false;b.textContent='Cargar nombres completos';pintar()};
+$('bDet').onclick=async()=>{try{const j=await api('/api/detalle?orden='+encodeURIComponent(ordenActual.orden));
+ const dl=document.createElement('dl');const plano=j.data||j;for(const [k,v] of Object.entries(plano)){const a=document.createElement('dt'),b=document.createElement('dd');
+ a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v):String(v);dl.append(a,b)}$('dlgCont').replaceChildren(dl)}catch(e){alert(e.message)}};
+async function verChat(){const c=document.createElement('div');c.className='chat';c.textContent='Cargando chat…';$('dlgCont').replaceChildren(c);
+ try{const j=await api('/api/chat?orden='+encodeURIComponent(ordenActual.orden));c.replaceChildren();
+  if(!j.mensajes.length){c.textContent='Esta orden no tiene mensajes (o Binance no los entregó).';return}
+  for(const m of j.mensajes){const d=document.createElement('div'),h=document.createElement('small');
+   d.className='msg'+(m.yo?' yo':'')+(!m.de&&!m.yo?' sis':'');
+   h.textContent=(m.yo?'Yo':(m.de||'Sistema'))+' · '+(m.hora_ms?new Date(m.hora_ms).toLocaleString():'');
+   d.append(h);d.append(document.createTextNode(m.texto||(m.imagen?'':'['+(m.tipo||'mensaje')+']')));
+   if(m.imagen&&/^https:\/\//.test(m.imagen)){const a=document.createElement('a');a.href=m.imagen;a.target='_blank';a.rel='noopener noreferrer';a.textContent='📎 ver imagen';a.style.color='var(--acc)';d.append(document.createElement('br'),a)}
+   c.append(d)}
+  c.scrollTop=c.scrollHeight}catch(e){c.textContent='No se pudo leer el chat.\n'+e.message}}
+$('bChat').onclick=verChat;
+$('bCerrar').onclick=()=>$('dlg').close();
+
+function tile(k,v,cls,sub){const d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.className='mut';s.textContent=k;b.textContent=v;if(cls)b.className=cls;d.append(s,b);
+ if(sub){const m=document.createElement('span');m.className='mut';m.textContent=sub;d.append(m)}return d}
+const signo=(n,d=2)=>(n>0?'+':'')+f2(n,d);
+function barras(a,b,ta,tb,unidad){const m=Math.max(a,b,1e-9),w=document.createElement('div');
+ for(const [v,t,c] of [[a,ta,'verde'],[b,tb,'rojo']]){const l=document.createElement('span');l.className='mut';l.textContent=t+': '+f2(v)+' '+unidad;
+  const br=document.createElement('div'),i=document.createElement('i');br.className='barra';i.className=c;i.style.width=(100*v/m)+'%';br.append(i);w.append(l,br)}return w}
+function pintarBalance(bal){const cont=$('balance');cont.replaceChildren();const fiats=Object.values(bal||{});
+ $('balPeriodo').textContent='· últimos '+$('fDias').value+' días, solo órdenes completadas';
+ if(!fiats.length){cont.textContent='Sin órdenes de USDT en este periodo.';return}
+ for(const b of fiats){const h=document.createElement('h2');h.textContent='USDT / '+b.fiat;h.style.marginTop='12px';cont.append(h);
+  const g=document.createElement('div');g.className='bal';
+  g.append(tile('Comprado',f2(b.comprado)+' USDT','pos',b.n_compras+' órdenes · pagaste '+f2(b.pagado)+' '+b.fiat),
+   tile('Vendido',f2(b.vendido)+' USDT','neg',b.n_ventas+' órdenes · cobraste '+f2(b.cobrado)+' '+b.fiat),
+   tile('Precio prom. compra',b.comprado?f2(b.precio_compra,3)+' '+b.fiat:'—'),tile('Precio prom. venta',b.vendido?f2(b.precio_venta,3)+' '+b.fiat:'—'),
+   tile('Diferencia USDT (comprado − vendido)',signo(b.neto_usdt)+' USDT',b.neto_usdt>=0?'pos':'neg',b.neto_usdt>=0?'Acumulaste USDT':'Vendiste más de lo que compraste'),
+   tile('Diferencia '+b.fiat+' (cobrado − pagado)',signo(b.neto_fiat)+' '+b.fiat,b.neto_fiat>=0?'pos':'neg'),
+   tile('Ganancia estimada',signo(b.ganancia_estimada)+' '+b.fiat,b.ganancia_estimada>=0?'pos':'neg','(precio venta − compra) × volumen emparejado'),
+   tile('Comisiones',f2(b.comision,4)+' USDT'),
+   tile('En curso ahora',b.n_en_curso+' órdenes',null,'comprando '+f2(b.en_curso_compra)+' · vendiendo '+f2(b.en_curso_venta)+' USDT'),
+   tile('Canceladas',b.canceladas));cont.append(g);
+  const c=document.createElement('div');c.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px';
+  c.append(barras(b.comprado,b.vendido,'Comprado','Vendido','USDT'),barras(b.pagado,b.cobrado,'Pagaste','Cobraste',b.fiat));cont.append(c)}}
+async function cargarSaldos(){const c=$('saldos');try{const j=await api('/api/saldos');c.replaceChildren();
+ const t=(j.spot?j.spot.libre+j.spot.bloqueado:0)+(j.fondos?j.fondos.libre+j.fondos.bloqueado:0);
+ c.append(tile('USDT total',f2(t),'pos'));
+ if(j.fondos)c.append(tile('Billetera de Fondos (P2P)',f2(j.fondos.libre+j.fondos.bloqueado),null,'disponible '+f2(j.fondos.libre)+' · bloqueado '+f2(j.fondos.bloqueado)));
+ if(j.spot)c.append(tile('Billetera Spot',f2(j.spot.libre+j.spot.bloqueado),null,'disponible '+f2(j.spot.libre)+' · bloqueado '+f2(j.spot.bloqueado)));
+ for(const e of j.errores){const d=document.createElement('div');d.className='mut';d.textContent='⚠ '+e;c.append(d)}}catch(e){c.textContent='No se pudieron leer los saldos: '+e.message}}
+async function cargar(){try{const j=await api('/api/ordenes?dias='+$('fDias').value);datos=j.ordenes;
+ llenarSelect($('fActivo'),datos.map(o=>o.activo));llenarSelect($('fFiat'),datos.map(o=>o.fiat));llenarSelect($('fEstado'),datos.map(o=>o.estado));
+ pintarBalance(j.balance);cargarSaldos();error('');$('estado').textContent='Actualizado '+new Date(j.actualizado*1000).toLocaleTimeString();filtrar()}catch(e){error(e.message)}}
+async function iniciar(){const s=await api('/api/estado');$('conexion').classList.toggle('oculto',s.conectado);$('panel').classList.toggle('oculto',!s.conectado);
+ $('bProbar').classList.toggle('oculto',!s.conectado);$('bSalir').classList.toggle('oculto',!s.conectado);clearInterval(timer);
+ if(s.conectado){$('estado').textContent='Clave '+s.clave;await cargar();timer=setInterval(cargar,30000)}}
+$('bConectar').onclick=async()=>{try{await api('/api/conectar',{key:$('key').value,secret:$('secret').value,recordar:$('recordar').checked});
+ $('secret').value='';error('');await iniciar()}catch(e){error(e.message)}};
+$('bSalir').onclick=async()=>{await api('/api/desconectar',{});datos=[];$('diag').classList.add('oculto');await iniciar()};
+$('bProbar').onclick=async()=>{const j=await api('/api/probar');const d=$('diag');d.classList.remove('oculto');
+ d.textContent=j.error?('❌ '+j.error+'\n\nClave leída: '+j.clave):('✅ Conexión correcta con Binance.\nClave: '+j.clave+'\nPermisos de la API:\n'+JSON.stringify(j.permisos,null,2))};
+['fTipo','fActivo','fFiat','fEstado'].forEach(i=>$(i).onchange=filtrar);$('fBuscar').oninput=filtrar;$('fDias').onchange=cargar;
+$('bCsv').onclick=()=>{const base=['creada_ms','orden','anuncio','tipo','activo','fiat','cantidad','precio','total_fiat','comision_maker','comision_taker','comision_total','contraparte','metodo_pago','estado'];
+ const ipOrd=o=>(ips[o.orden]||[]).map(x=>x.ip).join(' '),paisOrd=o=>(ips[o.orden]||[]).map(x=>x.pais).join(' ');
+ const extra=[...new Set(visibles.flatMap(o=>Object.keys(o.raw)))];const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const lineas=[['fecha',...base,'ip','pais_origen',...extra.map(k=>'binance_'+k)].map(q).join(',')];
+ for(const o of visibles)lineas.push([new Date(o.creada_ms).toLocaleString(),...base.map(k=>o[k]),ipOrd(o),paisOrd(o),...extra.map(k=>typeof o.raw[k]==='object'?JSON.stringify(o.raw[k]):o.raw[k])].map(q).join(','));
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lineas.join('\n')],{type:'text/csv'}));a.download='ordenes_p2p.csv';a.click()};
+$('bIps').onclick=()=>$('fIps').click();
+$('fIps').onchange=async e=>{try{const filas=JSON.parse(await e.target.files[0].text());let n=0;
+ for(const f of filas)for(const ord of String(f.orden||'').split(',').filter(Boolean)){(ips[ord]=ips[ord]||[]);if(!ips[ord].some(x=>x.ip===f.ip)){ips[ord].push({ip:f.ip,pais:f.pais||''});n++}}
+ error('');pintar();$('bIps').textContent='IPs cargadas: '+n}catch(x){error('No se pudo leer el archivo de IPs: '+x.message)}e.target.value=''};
+iniciar().catch(e=>error(e.message));
+</script></html>

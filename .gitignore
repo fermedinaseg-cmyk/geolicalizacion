@@ -1,7 +1,10 @@
+*.db
+*.pyc
 .env
 .token_cache.json
-__pycache__/
-*.pyc
 .venv/
+__pycache__/
+claves_p2p.json
+ordenes_p2p*.csv
 resultados*.csv
 resultados*.json
