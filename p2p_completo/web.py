@@ -6,7 +6,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from .api import Binance, ErrorBinance, DIA_MS, calcular_balance, enmascarar, normalizar
+from .api import Binance, ErrorBinance, DIA_MS, calcular_balance, enmascarar, normalizar, resumen_detalle
 
 ARCHIVO_CLAVES = "claves_p2p.json"
 PAGINA = open(os.path.join(os.path.dirname(__file__), "pagina.html"), encoding="utf-8").read()
@@ -17,10 +17,11 @@ class Estado:
         self.fabrica = fabrica
         self.cliente = None
         self.cache: dict = {}
+        self.detalles: dict = {}
         self.cargar_guardadas()
 
     def conectar(self, key: str, secret: str, recordar: bool) -> None:
-        self.cliente, self.cache = self.fabrica(key, secret), {}
+        self.cliente, self.cache, self.detalles = self.fabrica(key, secret), {}, {}
         if recordar:
             with open(ARCHIVO_CLAVES, "w", encoding="utf-8") as f:
                 json.dump({"key": key.strip(), "secret": secret.strip()}, f)
@@ -38,7 +39,7 @@ class Estado:
             pass
 
     def olvidar(self) -> None:
-        self.cliente, self.cache = None, {}
+        self.cliente, self.cache, self.detalles = None, {}, {}
         if os.path.exists(ARCHIVO_CLAVES):
             os.remove(ARCHIVO_CLAVES)
 
@@ -98,7 +99,11 @@ def servidor(estado: Estado, puerto: int = 8766) -> ThreadingHTTPServer:
                     elif url.path == "/api/chat":
                         self._json(200, {"mensajes": estado.cliente.chat(q["orden"][0])})
                     elif url.path == "/api/detalle":
-                        self._json(200, estado.cliente.detalle(q["orden"][0]))
+                        orden, tipo = q["orden"][0], q.get("tipo", [""])[0]
+                        if orden not in estado.detalles:
+                            crudo = estado.cliente.detalle(orden)
+                            estado.detalles[orden] = {"crudo": crudo, "resumen": resumen_detalle(crudo, tipo)}
+                        self._json(200, estado.detalles[orden])
                     else:
                         self._json(404, {})
                 except ErrorBinance as e:

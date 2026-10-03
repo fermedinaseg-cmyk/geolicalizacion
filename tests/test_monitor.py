@@ -3,7 +3,7 @@ import threading
 import unittest
 import urllib.request
 
-from p2p_completo.api import Binance, ErrorBinance, calcular_balance, normalizar, normalizar_mensaje
+from p2p_completo.api import Binance, ErrorBinance, calcular_balance, resumen_detalle, normalizar, normalizar_mensaje
 from p2p_completo.web import Estado, servidor
 
 ORDEN = {"orderNumber": "99", "advNo": "7", "tradeType": "SELL", "asset": "USDT", "fiat": "BOB", "amount": "100",
@@ -28,7 +28,7 @@ class Falso:
         return [normalizar_mensaje({"content": "hola", "fromNickName": "Juan", "createTime": 1790000000})]
 
     def detalle(self, n):
-        return {"data": {"x": 1}}
+        return {"data": {"buyerName": "Juan Perez Mamani", "payMethods": [{"tradeMethodName": "QR", "fields": [{"fieldName": "Cuenta", "fieldValue": "123"}]}]}}
 
 
 class T(unittest.TestCase):
@@ -36,6 +36,14 @@ class T(unittest.TestCase):
         n = normalizar(ORDEN)
         self.assertAlmostEqual(n["comision_total"], 0.15)
         self.assertEqual((n["contraparte"], n["fiat"], n["raw"]["advNo"]), ("Juan", "BOB", "7"))
+
+    def test_resumen_detalle(self):
+        crudo = {"data": {"buyerName": "Juan Perez Mamani", "sellerName": "Yo Mismo", "buyerNickname": "juanp",
+                          "payMethods": [{"tradeMethodName": "QR Simple", "fields": [{"fieldName": "Nombre", "fieldValue": "Juan Perez"}]}]}}
+        r = resumen_detalle(crudo, "SELL")
+        self.assertEqual((r["contraparte_nombre"], r["comprador_nick"]), ("Juan Perez Mamani", "juanp"))
+        self.assertEqual(r["pagos"][0]["campos"], [("Nombre", "Juan Perez")])
+        self.assertEqual(resumen_detalle(crudo, "BUY")["contraparte_nombre"], "Yo Mismo")
 
     def test_balance(self):
         def o(tipo, cant, precio, estado="COMPLETED"):
@@ -69,6 +77,7 @@ class T(unittest.TestCase):
         urllib.request.urlopen(req)
         self.assertEqual(len(get("/api/ordenes?dias=30")["ordenes"]), 1)
         self.assertIn("Invalid", get("/api/probar")["error"])
+        self.assertEqual(get("/api/detalle?orden=99&tipo=SELL")["resumen"]["contraparte_nombre"], "Juan Perez Mamani")
         self.assertEqual(get("/api/saldos")["fondos"]["libre"], 10.0)
         self.assertIn("BOB", get("/api/ordenes?dias=30")["balance"])
         self.assertEqual(get("/api/chat?orden=99")["mensajes"][0]["texto"], "hola")

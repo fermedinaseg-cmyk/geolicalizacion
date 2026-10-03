@@ -59,18 +59,18 @@ dt{color:var(--mut)}dd{margin:0;word-break:break-all}
   <div><label>Estado</label><select id="fEstado"><option value="">Todos</option></select></div>
   <div><label>Últimos días</label><select id="fDias"><option>7</option><option selected>30</option><option>60</option><option>90</option><option>180</option><option>365</option></select></div>
   <div style="flex:1"><label>Buscar (orden, contraparte, método de pago)</label><input type="text" id="fBuscar"></div>
-  <button id="bCsv">Descargar CSV</button>
+  <button id="bNombres" title="Pide a Binance el detalle de cada orden mostrada">Cargar nombres completos</button><button id="bCsv">Descargar CSV</button>
  </div>
  <div class="res" id="res"></div>
  <div class="tabla"><table><thead><tr>
   <th>Fecha</th><th>Hora</th><th>Orden</th><th>Tipo</th><th class="n">Cantidad</th><th>Activo</th><th class="n">Precio</th><th class="n">Total</th><th>Moneda</th>
-  <th class="n">Comisión</th><th>Contraparte</th><th>Método de pago</th><th>Estado</th><th>Chat</th></tr></thead><tbody id="filas"></tbody></table></div>
+  <th class="n">Comisión</th><th>Contraparte</th><th>Nombre completo</th><th>Método de pago</th><th>Estado</th><th>Chat</th></tr></thead><tbody id="filas"></tbody></table></div>
  <p class="mut" id="pie"></p>
 </section>
 </main>
 <dialog id="dlg"><div id="dlgCont"></div><p><button id="bChat">Ver chat</button> <button id="bDet">Pedir detalle completo a Binance</button> <button id="bCerrar">Cerrar</button></p></dialog>
 <script>
-const $=id=>document.getElementById(id);let datos=[],visibles=[],ordenActual=null,timer=null;
+const $=id=>document.getElementById(id);const nombres={};let datos=[],visibles=[],ordenActual=null,timer=null;
 const f2=(n,d=2)=>Number(n).toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d});
 async function api(ruta,cuerpo){const r=await fetch(ruta,cuerpo?{method:'POST',body:JSON.stringify(cuerpo)}:{});let j={};try{j=await r.json()}catch(e){}
  if(!r.ok||j.error&&!ruta.includes('probar'))throw new Error(j.error||('Error '+r.status));return j}
@@ -84,7 +84,7 @@ function pintar(){const tb=$('filas');tb.replaceChildren();
  for(const o of visibles){const tr=document.createElement('tr'),d=new Date(o.creada_ms);
   td(tr,d.toLocaleDateString());td(tr,d.toLocaleTimeString());td(tr,o.orden);td(tr,o.tipo==='SELL'?'VENTA':'COMPRA',o.tipo);
   td(tr,f2(o.cantidad),'n');td(tr,o.activo);td(tr,f2(o.precio,3),'n');td(tr,f2(o.total_fiat),'n');td(tr,o.fiat);
-  td(tr,f2(o.comision_total,4)+' '+o.activo,'n');td(tr,o.contraparte);td(tr,o.metodo_pago);pill(tr,o.estado);
+  td(tr,f2(o.comision_total,4)+' '+o.activo,'n');td(tr,o.contraparte);td(tr,nombres[o.orden]!==undefined?(nombres[o.orden]||'—'):'');td(tr,o.metodo_pago);pill(tr,o.estado);
   const cx=document.createElement('td'),cb=document.createElement('button');cb.textContent='💬';cb.title='Ver chat';
   cb.onclick=ev=>{ev.stopPropagation();abrir(o);verChat()};cx.append(cb);tr.append(cx);
   tr.onclick=()=>abrir(o);tb.append(tr)}
@@ -100,7 +100,17 @@ function pintar(){const tb=$('filas');tb.replaceChildren();
 function abrir(o){ordenActual=o;const dl=document.createElement('dl');
  const campos=[['Fecha',new Date(o.creada_ms).toLocaleString()],...Object.entries(o.raw)];
  for(const [k,v] of campos){const a=document.createElement('dt'),b=document.createElement('dd');a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v):String(v);dl.append(a,b)}
- $('dlgCont').replaceChildren(dl);$('dlg').showModal()}
+ $('dlgCont').replaceChildren(dl);$('dlg').showModal();cargarContraparte(o,dl)}
+function bloque(t,pares){const b=document.createElement('div');b.className='card';const h=document.createElement('h2');h.textContent=t;b.append(h);
+ const l=document.createElement('dl');for(const [k,v] of pares){const a=document.createElement('dt'),c=document.createElement('dd');a.textContent=k;c.textContent=v||'—';l.append(a,c)}b.append(l);return b}
+async function cargarContraparte(o,dl){const ph=document.createElement('p');ph.className='mut';ph.textContent='Cargando datos de la contraparte…';dl.before(ph);
+ try{const j=await api('/api/detalle?orden='+encodeURIComponent(o.orden)+'&tipo='+o.tipo);const r=j.resumen;nombres[o.orden]=r.contraparte_nombre;
+  const bl=[bloque('👤 Contraparte',[['Nombre completo',r.contraparte_nombre],['Usuario',o.contraparte],['Comprador',r.comprador_nombre+(r.comprador_nick?' ('+r.comprador_nick+')':'')],['Vendedor',r.vendedor_nombre+(r.vendedor_nick?' ('+r.vendedor_nick+')':'')]])];
+  for(const p of r.pagos)bl.push(bloque('💳 Pago: '+(p.metodo||'método'),p.campos));
+  if(ordenActual===o){ph.replaceWith(...bl)}pintar()}catch(e){ph.textContent='No se pudo leer el detalle de la orden: '+e.message}}
+$('bNombres').onclick=async()=>{const b=$('bNombres'),pend=visibles.filter(o=>nombres[o.orden]===undefined);let hechos=0,fallos=0;b.disabled=true;
+ const cola=[...pend];await Promise.all([0,1,2].map(async()=>{for(let o;(o=cola.shift());){try{const j=await api('/api/detalle?orden='+encodeURIComponent(o.orden)+'&tipo='+o.tipo);nombres[o.orden]=j.resumen.contraparte_nombre}catch(e){fallos++;if(fallos===1)error(e.message)}
+  b.textContent='Cargando '+(++hechos)+'/'+pend.length+'…'}}));b.disabled=false;b.textContent='Cargar nombres completos';pintar()};
 $('bDet').onclick=async()=>{try{const j=await api('/api/detalle?orden='+encodeURIComponent(ordenActual.orden));
  const dl=document.createElement('dl');const plano=j.data||j;for(const [k,v] of Object.entries(plano)){const a=document.createElement('dt'),b=document.createElement('dd');
  a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v):String(v);dl.append(a,b)}$('dlgCont').replaceChildren(dl)}catch(e){alert(e.message)}};

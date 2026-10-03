@@ -209,3 +209,33 @@ def calcular_balance(filas: list[dict], activo: str = "USDT") -> dict:
         pares = min(b["comprado"], b["vendido"])           # volumen "emparejado" compra/venta
         b["ganancia_estimada"] = pares * (b["precio_venta"] - b["precio_compra"]) if pares else 0.0
     return por_fiat
+
+
+def _primero(d: dict, *claves) -> str:
+    return next((str(d[k]) for k in claves if d.get(k) not in (None, "")), "")
+
+
+def resumen_detalle(resp: dict, tipo: str = "") -> dict:
+    """Del detalle de una orden saca el nombre completo de la contraparte y los datos de pago.
+
+    ``tipo`` es el tuyo (SELL = tú vendes, la contraparte es el comprador). Todo lo demás
+    sigue disponible en el detalle completo, por si Binance usa otros nombres de campo.
+    """
+    d = resp.get("data") if isinstance(resp.get("data"), dict) else resp
+    comprador = _primero(d, "buyerName", "buyerRealName")
+    vendedor = _primero(d, "sellerName", "sellerRealName")
+    pagos = []
+    for m in d.get("payMethods") or d.get("paymentMethods") or []:
+        if not isinstance(m, dict):
+            continue
+        campos = [(str(f.get("fieldName") or f.get("name") or ""), str(f.get("fieldValue") or f.get("value") or ""))
+                  for f in (m.get("fields") or []) if isinstance(f, dict)]
+        extra = [(k, str(m[k])) for k in ("accountNo", "account", "identifier", "bankName", "payAccount") if m.get(k)]
+        pagos.append({"metodo": _primero(m, "tradeMethodName", "payType", "identifier"), "campos": campos + extra})
+    return {
+        "comprador_nombre": comprador, "vendedor_nombre": vendedor,
+        "comprador_nick": _primero(d, "buyerNickname", "buyerNickName"),
+        "vendedor_nick": _primero(d, "sellerNickname", "sellerNickName"),
+        "contraparte_nombre": (comprador if tipo == "SELL" else vendedor) if tipo else (comprador or vendedor),
+        "pagos": pagos,
+    }

@@ -27,6 +27,10 @@ Binance puede limitar esta función a cuentas de comerciante; si la rechaza, el 
 por cada moneda local (p. ej. BOB), lo comprado, lo vendido, precios promedio, diferencias, ganancia estimada, comisiones y
 órdenes en curso, con barras comparativas. Se calcula con las órdenes completadas del periodo elegido (7 a 365 días).
 
+**Nombre completo y datos de pago:** al abrir una orden se muestra el nombre completo de la contraparte y los datos del
+método de pago que entrega Binance en el detalle. El botón *Cargar nombres completos* llena la columna «Nombre completo»
+para todas las órdenes mostradas (hace una consulta por orden, así que puede tardar si son muchas).
+
 ## Archivos
 | Archivo | Qué hace |
 |---|---|
