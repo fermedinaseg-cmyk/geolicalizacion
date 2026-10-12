@@ -68,12 +68,8 @@ export async function obtenerPrecio() {
   return { usd, usdtBob: anuncio.precio, volumen: anuncio.volumen, bob };
 }
 
-export function formatear({ usd, usdtBob, bob }) {
-  return [
-    '🔑 *Llave TF2*',
-    `Precio: *Bs ${bob.toFixed(2)}*`,
-    `(Clover $${usd.toFixed(3)} + ${(MARGEN * 100).toFixed(0)}% × ${usdtBob.toFixed(2)} Bs/USDT)`,
-  ].join('\n');
+export function formatear({ bob }) {
+  return `Bs ${bob.toFixed(2)}`;
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
