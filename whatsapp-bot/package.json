@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-bot-precio-llaves",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp: responde al comando .price con el precio de venta de llaves de TF2 en Bs",
+  "type": "module",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "precio": "node src/precio.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}
