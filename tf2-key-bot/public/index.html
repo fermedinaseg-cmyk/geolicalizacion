@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Llaves TF2 por USDC/USDT</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#1b1b1f;color:#eee;max-width:480px;margin:2rem auto;padding:0 1rem}
+  input,button{width:100%;padding:.7rem;margin:.3rem 0;border-radius:6px;border:1px solid #444;background:#2a2a30;color:#eee;font-size:1rem;box-sizing:border-box}
+  button{background:#e0a030;color:#111;font-weight:700;cursor:pointer}
+  .card{background:#25252b;padding:1rem;border-radius:8px;margin-top:1rem}
+  code{word-break:break-all;background:#111;padding:.2rem .4rem;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>🔑 Llaves TF2</h1>
+<div id="info">Cargando…</div>
+<form id="f" class="card">
+  <label>Trade URL de Steam <input id="url" required placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…"></label>
+  <label>Cantidad <input id="qty" type="number" min="1" value="1" required></label>
+  <button>Comprar</button>
+  <div id="err" style="color:#f66"></div>
+</form>
+<div id="order" class="card" hidden></div>
+<script>
+const $ = (id) => document.getElementById(id);
+let price = 0;
+async function info() {
+  const r = await (await fetch('/api/info')).json();
+  price = r.priceUsd;
+  $('info').textContent = `Precio: $${r.priceUsd} por llave · Stock: ${r.stock} · ${r.online ? 'Bot en línea' : 'Bot fuera de línea'}`;
+  $('qty').max = Math.min(r.maxPerOrder, r.stock);
+}
+function show(o) {
+  const el = $('order'); el.hidden = false;
+  const labels = {pending_payment:'Esperando pago',paid:'Pago recibido',sending:'Enviando oferta de intercambio — acéptala en Steam',completed:'¡Completado!',expired:'Expirado',manual_review:'En revisión manual (contacta soporte con tu #'+o.id+')'};
+  el.innerHTML = `<h3>Pedido #${o.id}: ${labels[o.status]}</h3>` +
+    (o.status === 'pending_payment' ? `<p>Envía <b>${o.total}</b> USDC <u>o</u> USDT por la red <b>Polygon</b> a:</p><p><code>${o.address}</code></p><p>Envía el monto exacto (o más) en una sola transferencia. Caduca a las ${new Date(o.expiresAt).toLocaleTimeString()}. La confirmación tarda ~1 min.</p><p>⚠️ Otra red = fondos perdidos.</p>` : '');
+  if (['pending_payment','paid','sending'].includes(o.status)) setTimeout(() => poll(o.id), 8000);
+}
+async function poll(id) { show(await (await fetch('/api/orders/' + id)).json()); }
+$('f').onsubmit = async (e) => {
+  e.preventDefault(); $('err').textContent = '';
+  const r = await fetch('/api/orders', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({tradeUrl:$('url').value,qty:Number($('qty').value)})});
+  const j = await r.json();
+  if (!r.ok) return $('err').textContent = j.error;
+  localStorage.setItem('order', j.id); show(j);
+};
+info(); setInterval(info, 30000);
+const last = localStorage.getItem('order'); if (last) poll(last);
+</script>
+</body>
+</html>

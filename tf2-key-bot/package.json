@@ -1,0 +1,30 @@
+{
+  "name": "tf2-key-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bot de Steam que vende llaves de TF2 a cambio de USDC/USDT en Polygon",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "ethers": "^6.13.4",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "steam-totp": "^2.1.2",
+    "steam-tradeoffer-manager": "^2.10.7",
+    "steam-user": "^5.0.9",
+    "steamcommunity": "^3.48.6",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}
