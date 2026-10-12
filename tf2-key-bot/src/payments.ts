@@ -1,6 +1,6 @@
-import { Contract, HDNodeWallet, JsonRpcProvider } from 'ethers';
+import { Contract, HDNodeWallet, JsonRpcProvider, Wallet, isAddress } from 'ethers';
 import type { Config } from './config.js';
-import type { Order, Orders } from './db.js';
+import type { Order, Orders, PayToken } from './db.js';
 
 // Tokens nativos en Polygon PoS (ambos con 6 decimales)
 export const TOKENS = {
@@ -8,10 +8,13 @@ export const TOKENS = {
   USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
 } as const;
 
-const ERC20_ABI = ['function balanceOf(address) view returns (uint256)'];
+const ERC20_ABI = [
+  'function balanceOf(address) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+];
 
 export class Payments {
-  private provider: JsonRpcProvider;
+  provider: JsonRpcProvider;
   private root: HDNodeWallet;
   private contracts: Contract[];
 
@@ -62,5 +65,46 @@ export class Payments {
         console.error(`[pagos] error revisando pedido ${o.id}:`, (e as Error).message);
       }
     }
+  }
+}
+
+/** Direcciones que nunca deben recibir un pago (cero, contratos de los tokens). */
+export function isValidPayoutAddress(addr: string): boolean {
+  if (!isAddress(addr)) return false;
+  const l = addr.toLowerCase();
+  return l !== '0x0000000000000000000000000000000000000000' && !Object.values(TOKENS).some((t) => t.toLowerCase() === l);
+}
+
+/** Cartera caliente: paga las compras de llaves. Única pieza con clave privada. */
+export class Payouts {
+  readonly wallet: Wallet;
+
+  constructor(cfg: Config, provider: JsonRpcProvider) {
+    this.wallet = new Wallet(cfg.hotWalletKey, provider);
+  }
+
+  private token(t: PayToken) {
+    return new Contract(TOKENS[t], ERC20_ABI, this.wallet);
+  }
+
+  async balance(t: PayToken): Promise<bigint> {
+    return (await this.token(t).getFunction('balanceOf')(this.wallet.address)) as bigint;
+  }
+
+  /** Saldo total (USDC+USDT) que se puede usar para pagos. */
+  async totalBalance(): Promise<bigint> {
+    return (await this.balance('USDC')) + (await this.balance('USDT'));
+  }
+
+  /** Envía la transferencia y devuelve el hash apenas se difunde. */
+  async send(t: PayToken, to: string, micros: bigint): Promise<string> {
+    const tx = await this.token(t).getFunction('transfer')(to, micros);
+    return tx.hash as string;
+  }
+
+  /** Espera 1 confirmación; true si se ejecutó con éxito. */
+  async confirmed(hash: string): Promise<boolean | null> {
+    const r = await this.wallet.provider!.getTransactionReceipt(hash);
+    return r ? r.status === 1 : null;
   }
 }

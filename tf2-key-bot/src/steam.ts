@@ -15,6 +15,8 @@ export class SteamBot {
   private manager: any;
   private ready = false;
   private cachedKeys = 0;
+  /** Se invoca cuando el cliente aceptó una oferta de COMPRA (ya tenemos sus llaves). */
+  onBuyAccepted?: (order: Order) => void;
 
   constructor(private cfg: Config, private orders: Orders) {
     this.manager = new TradeOfferManager({
@@ -97,19 +99,62 @@ export class SteamBot {
     return String(offer.id);
   }
 
+  /** COMPRA: pide al cliente sus llaves mediante una oferta; él debe aceptarla. Devuelve el id de la oferta. */
+  async requestKeys(order: Order): Promise<string> {
+    if (!this.ready) throw new Error('Bot de Steam no está listo');
+    const inv: any[] = await new Promise((res, rej) =>
+      this.manager.getUserInventoryContents(order.steam_id, TF2_APPID, TF2_CONTEXT, true, (e: Error | null, i: any[]) =>
+        e ? rej(new Error('No se pudo leer tu inventario de TF2 (¿es público?)')) : res(i),
+      ),
+    );
+    const keys = inv.filter((i) => i.market_hash_name === KEY_NAME && i.tradable).slice(0, order.qty);
+    if (keys.length < order.qty) throw new Error(`El cliente solo tiene ${keys.length} llaves intercambiables`);
+
+    const offer = this.manager.createOffer(order.steam_id);
+    offer.setToken(order.trade_token);
+    offer.addTheirItems(keys);
+    offer.setMessage(`Pedido #${order.id} - compramos ${order.qty} llave(s) TF2. Recibirás el pago en cripto al aceptar.`);
+
+    // Si el cliente no tiene autenticador móvil las llaves quedarían retenidas (escrow): se rechaza.
+    const days: number = await new Promise((res, rej) =>
+      offer.getUserDetails((e: Error | null, _me: any, them: any) => (e ? rej(e) : res(them?.escrowDays ?? 0))),
+    );
+    if (days > 0) throw new Error('Tu cuenta tiene retención (escrow) de intercambios; activa Steam Guard móvil');
+
+    await new Promise<void>((res, rej) => offer.send((e: Error | null) => (e ? rej(e) : res())));
+    return String(offer.id);
+  }
+
+  /** Cancela una oferta propia aún abierta (para pedidos de compra expirados). */
+  cancelOffer(offerId: string): void {
+    this.manager.getOffer(offerId, (e: Error | null, offer: any) => {
+      if (!e && offer?.state === TradeOfferManager.ETradeOfferState.Active) offer.cancel(() => {});
+    });
+  }
+
   private onOfferChanged(offer: any): void {
-    const order = this.orders.byStatus('sending').find((o) => o.offer_id === String(offer.id));
+    const id = String(offer.id);
+    const order = [...this.orders.byStatus('sending'), ...this.orders.byStatus('awaiting_items')].find((o) => o.offer_id === id);
     if (!order) return;
     const S = TradeOfferManager.ETradeOfferState;
     if (offer.state === S.Accepted) {
-      this.orders.transition(order.id, 'sending', 'completed');
-      console.log(`[steam] pedido ${order.id} completado`);
-      void this.refreshStock();
+      if (order.side === 'sell') {
+        this.orders.transition(order.id, 'sending', 'completed');
+        console.log(`[steam] pedido ${order.id} completado`);
+        void this.refreshStock();
+      } else if (this.orders.transition(order.id, 'awaiting_items', 'paying')) {
+        console.log(`[steam] pedido ${order.id}: llaves recibidas, a pagar`);
+        void this.refreshStock();
+        this.onBuyAccepted?.(this.orders.get(order.id)!);
+      }
     } else if ([S.Declined, S.Canceled, S.Expired, S.InvalidItems, S.CanceledBySecondFactor].includes(offer.state)) {
-      // El cliente rechazó o la oferta caducó: las llaves siguen en el bot; decide un humano (reembolso/reenvío).
-      this.orders.transition(order.id, 'sending', 'manual_review', {
-        note: `Oferta ${offer.id} terminó en estado ${S[offer.state]}`,
-      });
+      if (order.side === 'buy') {
+        // No se movió nada: la compra simplemente no ocurrió.
+        this.orders.transition(order.id, 'awaiting_items', 'expired', { note: `Oferta ${offer.id}: ${S[offer.state]}` });
+      } else {
+        // El cliente rechazó o la oferta caducó: las llaves siguen en el bot; decide un humano (reembolso/reenvío).
+        this.orders.transition(order.id, 'sending', 'manual_review', { note: `Oferta ${offer.id} terminó en estado ${S[offer.state]}` });
+      }
     }
   }
 }
